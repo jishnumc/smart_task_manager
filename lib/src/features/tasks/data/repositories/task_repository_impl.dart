@@ -82,4 +82,76 @@ class TaskRepositoryImpl implements TaskRepository {
 
     return CreateTaskResult(task: localTask.toEntity(), isOfflineSaved: true);
   }
+
+  @override
+  Future<GetTasksResult> getTasks({
+    int skip = 0,
+    int limit = 10,
+    bool forceRefresh = false,
+  }) async {
+    final userId = _storageClient.read<String>('user_id') ?? 'default_user';
+    final isConnected = await _networkInfo.isConnected;
+
+    if (isConnected) {
+      try {
+        final apiResponse = await _remoteDataSource.getTasks(
+          userId: userId,
+          skip: skip,
+          limit: limit,
+        );
+
+        final remoteTasks = apiResponse.data ?? [];
+        // Cache fetched tasks into local SQLite database
+        if (remoteTasks.isNotEmpty) {
+          try {
+            await _localDataSource.saveTasks(
+              tasks: remoteTasks,
+              userId: userId,
+            );
+          } catch (_) {
+            // Non-fatal cache write failure
+          }
+        }
+
+        return GetTasksResult(
+          tasks: remoteTasks.map((m) => m.toEntity()).toList(),
+          total: apiResponse.total ?? remoteTasks.length,
+          isOfflineSaved: false,
+        );
+      } on NetworkException {
+        // Fallback to local SQLite if network drops
+      } catch (e) {
+        if (e is AppException) rethrow;
+        throw ServerException(e.toString());
+      }
+    }
+
+    // Load tasks from local SQLite database (Offline mode or fallback)
+    final localModels = await _localDataSource.getTasks(
+      userId: userId,
+      skip: skip,
+      limit: limit,
+    );
+
+    return GetTasksResult(
+      tasks: localModels.map((m) => m.toEntity()).toList(),
+      total: localModels.length,
+      isOfflineSaved: true,
+    );
+  }
+
+  @override
+  Future<void> deleteTask(String taskId) async {
+    final isConnected = await _networkInfo.isConnected;
+
+    if (isConnected) {
+      try {
+        await _remoteDataSource.deleteTask(taskId: taskId);
+      } catch (_) {
+        // Continue to delete locally even if remote endpoint throws or is unavailable
+      }
+    }
+
+    await _localDataSource.deleteTask(taskId);
+  }
 }

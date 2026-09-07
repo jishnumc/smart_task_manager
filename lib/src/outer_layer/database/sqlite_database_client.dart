@@ -56,7 +56,11 @@ class SqliteDatabaseClient {
     );
   }
 
-  Future<List<Map<String, dynamic>>> getTasks({String? userId}) async {
+  Future<List<Map<String, dynamic>>> getTasks({
+    String? userId,
+    int? limit,
+    int? offset,
+  }) async {
     final db = await database;
     if (userId != null && userId.isNotEmpty) {
       return await db.query(
@@ -64,9 +68,16 @@ class SqliteDatabaseClient {
         where: 'user_id = ? OR user_id IS NULL OR user_id = ""',
         whereArgs: [userId],
         orderBy: 'id DESC',
+        limit: limit,
+        offset: offset,
       );
     }
-    return await db.query('tasks', orderBy: 'id DESC');
+    return await db.query(
+      'tasks',
+      orderBy: 'id DESC',
+      limit: limit,
+      offset: offset,
+    );
   }
 
   Future<int> updateTask(int id, Map<String, dynamic> row) async {
@@ -87,4 +98,23 @@ class SqliteDatabaseClient {
       whereArgs: [id],
     );
   }
+
+  Future<int> deleteTaskByRemoteOrLocalId(String idStr) async {
+    final db = await database;
+    final parsedId = int.tryParse(idStr);
+    if (parsedId != null) {
+      final count = await db.delete(
+        'tasks',
+        where: 'id = ? OR remote_id = ?',
+        whereArgs: [parsedId, idStr],
+      );
+      if (count > 0) return count;
+    }
+    return await db.delete(
+      'tasks',
+      where: 'remote_id = ?',
+      whereArgs: [idStr],
+    );
+  }
 }
+

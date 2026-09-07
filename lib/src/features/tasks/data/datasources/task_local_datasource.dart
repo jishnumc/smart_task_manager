@@ -11,6 +11,19 @@ abstract class TaskLocalDataSource {
     String? remoteId,
     bool isSynced = false,
   });
+
+  Future<void> saveTasks({
+    required List<TaskDataModel> tasks,
+    required String userId,
+  });
+
+  Future<List<TaskDataModel>> getTasks({
+    required String userId,
+    int skip = 0,
+    int limit = 10,
+  });
+
+  Future<void> deleteTask(String id);
 }
 
 /// Implementation of [TaskLocalDataSource] using [SqliteDatabaseClient].
@@ -60,4 +73,73 @@ class TaskLocalDataSourceImpl implements TaskLocalDataSource {
       throw CacheException('Failed to save task to local database: $e');
     }
   }
+
+  @override
+  Future<void> saveTasks({
+    required List<TaskDataModel> tasks,
+    required String userId,
+  }) async {
+    try {
+      for (final task in tasks) {
+        final map = <String, dynamic>{
+          'user_id': task.userId ?? userId,
+          'remote_id': task.id.toString(),
+          'title': task.title,
+          'description': task.description,
+          'is_completed': task.isCompleted ? 1 : 0,
+          'due_date': task.dueDate,
+          'priority': task.priority,
+          'category': task.category,
+          'is_synced': 1,
+          'created_at': task.createdAt ?? DateTime.now().toIso8601String(),
+          'updated_at': task.updatedAt ?? DateTime.now().toIso8601String(),
+        };
+        await _sqliteClient.insertTask(map);
+      }
+    } catch (e) {
+      throw CacheException('Failed to cache tasks in local database: $e');
+    }
+  }
+
+  @override
+  Future<List<TaskDataModel>> getTasks({
+    required String userId,
+    int skip = 0,
+    int limit = 10,
+  }) async {
+    try {
+      final rows = await _sqliteClient.getTasks(
+        userId: userId,
+        limit: limit,
+        offset: skip,
+      );
+
+      return rows.map((row) {
+        return TaskDataModel(
+          id: row['remote_id'] ?? row['id'].toString(),
+          userId: row['user_id']?.toString() ?? userId,
+          title: row['title']?.toString() ?? '',
+          description: row['description']?.toString() ?? '',
+          isCompleted: (row['is_completed'] as int?) == 1,
+          dueDate: row['due_date']?.toString() ?? DateTime.now().toIso8601String(),
+          priority: row['priority']?.toString() ?? 'Medium',
+          category: row['category']?.toString() ?? 'Work',
+          createdAt: row['created_at']?.toString(),
+          updatedAt: row['updated_at']?.toString(),
+        );
+      }).toList();
+    } catch (e) {
+      throw CacheException('Failed to fetch tasks from local database: $e');
+    }
+  }
+
+  @override
+  Future<void> deleteTask(String id) async {
+    try {
+      await _sqliteClient.deleteTaskByRemoteOrLocalId(id);
+    } catch (e) {
+      throw CacheException('Failed to delete task from local database: $e');
+    }
+  }
 }
+

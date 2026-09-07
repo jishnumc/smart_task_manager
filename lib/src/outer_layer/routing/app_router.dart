@@ -6,7 +6,9 @@ import 'package:smart_task_manager/src/features/auth/presentation/notifiers/auth
 import 'package:smart_task_manager/src/features/auth/presentation/view/auth_screen.dart';
 import 'package:smart_task_manager/src/features/dashboard/presentation/view/dashboard_screen.dart';
 
+import 'package:smart_task_manager/src/features/tasks/domain/entities/task_entity.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/view/create_task_screen.dart';
+import 'package:smart_task_manager/src/features/tasks/presentation/view/task_detail_screen.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/view/task_list_screen.dart';
 
 part 'app_router.g.dart';
@@ -71,6 +73,15 @@ GoRouter appRouter(Ref ref) {
         name: 'tasks',
         builder: (context, state) => const TaskListScreen(),
       ),
+      GoRoute(
+        path: '/task-detail',
+        name: 'task-detail',
+        builder: (context, state) {
+          final task = state.extra as TaskEntity;
+          return TaskDetailScreen(task: task);
+        },
+      ),
     ],
   );
 }
+

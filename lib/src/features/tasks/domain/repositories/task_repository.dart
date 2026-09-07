@@ -12,7 +12,29 @@ class CreateTaskResult {
   final bool isOfflineSaved;
 }
 
+/// Result object returned after fetching tasks list.
+class GetTasksResult {
+  const GetTasksResult({
+    required this.tasks,
+    required this.total,
+    required this.isOfflineSaved,
+  });
+
+  final List<TaskEntity> tasks;
+  final int total;
+  final bool isOfflineSaved;
+}
+
 /// Abstract contract for Task repository.
 abstract class TaskRepository {
   Future<CreateTaskResult> createTask(TaskCreateRequestModel payload);
+
+  Future<GetTasksResult> getTasks({
+    int skip = 0,
+    int limit = 10,
+    bool forceRefresh = false,
+  });
+
+  Future<void> deleteTask(String taskId);
 }
+
