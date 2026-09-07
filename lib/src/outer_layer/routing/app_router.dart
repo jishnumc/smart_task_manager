@@ -1,7 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:smart_task_manager/app.dart';
-import 'package:smart_task_manager/src/features/auth/auth_screen.dart';
+import 'package:smart_task_manager/src/features/auth/presentation/view/auth_screen.dart';
 
 part 'app_router.g.dart';
 
