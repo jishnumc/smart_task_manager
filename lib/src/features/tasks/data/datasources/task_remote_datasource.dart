@@ -20,6 +20,7 @@ abstract class TaskRemoteDataSource {
 
   Future<void> deleteTask({
     required String taskId,
+    required String userId,
   });
 }
 
@@ -86,11 +87,21 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
   @override
   Future<void> deleteTask({
     required String taskId,
+    required String userId,
   }) async {
     try {
-      await _apiClient.dio.delete<void>(
+      final response = await _apiClient.dio.delete<Map<String, dynamic>>(
         '/tasks/$taskId',
+        queryParameters: {
+          'user_id': userId,
+        },
       );
+
+      final data = response.data;
+      if (data != null && data['status'] == 'error') {
+        final msg = data['message']?.toString() ?? 'Failed to delete task.';
+        throw ServerException(msg);
+      }
     } on DioException catch (e) {
       _handleDioException(e);
     } catch (e) {
@@ -98,6 +109,7 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
       throw ServerException(e.toString());
     }
   }
+
 
   Never _handleDioException(DioException e) {
     if (e.type == DioExceptionType.connectionError ||

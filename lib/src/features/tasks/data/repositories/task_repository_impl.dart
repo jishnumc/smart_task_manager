@@ -142,16 +142,27 @@ class TaskRepositoryImpl implements TaskRepository {
 
   @override
   Future<void> deleteTask(String taskId) async {
+    final userId = _storageClient.read<String>('user_id') ?? 'default_user';
     final isConnected = await _networkInfo.isConnected;
 
     if (isConnected) {
       try {
-        await _remoteDataSource.deleteTask(taskId: taskId);
-      } catch (_) {
-        // Continue to delete locally even if remote endpoint throws or is unavailable
+        await _remoteDataSource.deleteTask(
+          taskId: taskId,
+          userId: userId,
+        );
+      } on NetworkException {
+        // Network dropped mid-request
+      } catch (e) {
+        // Update local DB before rethrowing error or handling
+        await _localDataSource.deleteTask(taskId);
+        if (e is AppException) rethrow;
+        throw ServerException(e.toString());
       }
     }
 
+    // Update local DB after deletion
     await _localDataSource.deleteTask(taskId);
   }
 }
+
