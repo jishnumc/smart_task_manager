@@ -121,18 +121,51 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
 
     final statusCode = e.response?.statusCode;
     final responseData = e.response?.data;
-    String errorMessage = 'Server error occurred.';
+    String? extractedMessage;
 
-    if (responseData is Map<String, dynamic> && responseData['message'] != null) {
-      errorMessage = responseData['message'].toString();
-    } else if (e.message != null && e.message!.isNotEmpty) {
-      errorMessage = e.message!;
+    if (responseData is Map<String, dynamic>) {
+      if (responseData['message'] != null && responseData['message'].toString().isNotEmpty) {
+        extractedMessage = responseData['message'].toString();
+      } else if (responseData['detail'] != null) {
+        final detail = responseData['detail'];
+        if (detail is List && detail.isNotEmpty) {
+          final messages = <String>[];
+          for (final item in detail) {
+            if (item is Map<String, dynamic>) {
+              final loc = item['loc'] is List && (item['loc'] as List).isNotEmpty
+                  ? (item['loc'] as List).last.toString()
+                  : null;
+              final msg = item['msg']?.toString();
+              if (loc != null && msg != null) {
+                messages.add('$loc: $msg');
+              } else if (msg != null) {
+                messages.add(msg);
+              }
+            } else if (item != null) {
+              messages.add(item.toString());
+            }
+          }
+          if (messages.isNotEmpty) {
+            extractedMessage = messages.join('\n');
+          }
+        } else if (detail is String && detail.isNotEmpty) {
+          extractedMessage = detail;
+        }
+      }
     }
+
+    final String finalMessage = extractedMessage ??
+        (statusCode == 422
+            ? 'Validation error: Please check your input parameters.'
+            : statusCode == 404
+                ? 'Requested resource not found.'
+                : 'Server error occurred (${statusCode ?? "unknown"}).');
 
     if (statusCode == 401 || statusCode == 403) {
-      throw AuthException(errorMessage, statusCode?.toString());
+      throw AuthException(finalMessage, statusCode?.toString());
     }
-    throw ServerException(errorMessage, statusCode?.toString());
+    throw ServerException(finalMessage, statusCode?.toString());
   }
 }
+
 

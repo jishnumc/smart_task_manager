@@ -1,12 +1,7 @@
 abstract class TaskOptionsData {
   /// Structured JSON data representation.
   static const Map<String, dynamic> rawJson = {
-    'priorities': [
-      'Low',
-      'Medium',
-      'High',
-      'Urgent',
-    ],
+    'priorities': ['Low', 'Medium', 'High'],
     'categories': [
       'Personal',
       'Work',
@@ -26,12 +21,7 @@ abstract class TaskOptionsData {
     },
   };
 
-  static const List<String> priorities = [
-    'Low',
-    'Medium',
-    'High',
-    'Urgent',
-  ];
+  static const List<String> priorities = ['Low', 'Medium', 'High'];
 
   static const List<String> categories = [
     'Personal',
