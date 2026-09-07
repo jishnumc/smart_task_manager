@@ -46,3 +46,14 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+
+# Custom
+**/*.g.dart
+**/*.lock
+**/*.mapper.dart
+**/*.freezed.dart
+**/*.chopper.dart
+lib/l10n/app_localizations*.dart
+env/*.json
+!env/sample.json
