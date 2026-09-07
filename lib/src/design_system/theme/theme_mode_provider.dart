@@ -8,7 +8,7 @@ part 'theme_mode_provider.g.dart';
 class ThemeModeNotifier extends _$ThemeModeNotifier {
   @override
   ThemeMode build() {
-    return ThemeMode.system;
+    return ThemeMode.dark;
   }
 
   /// Updates the theme mode.
