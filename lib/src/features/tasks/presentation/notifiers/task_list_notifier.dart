@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:smart_task_manager/src/features/tasks/domain/usecases/delete_task_usecase.dart';
 import 'package:smart_task_manager/src/features/tasks/domain/usecases/get_tasks_usecase.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/notifiers/create_task_notifier.dart';
+import 'package:smart_task_manager/src/features/tasks/presentation/notifiers/task_filter_enums.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/notifiers/task_list_state.dart';
 
 part 'task_list_notifier.g.dart';
@@ -129,4 +130,40 @@ class TaskListNotifier extends _$TaskListNotifier {
       return false;
     }
   }
+
+  void setSearchQuery(String query) {
+    state = state.copyWith(searchQuery: query);
+  }
+
+  void setStatusFilter(TaskStatusFilter filter) {
+    state = state.copyWith(statusFilter: filter);
+  }
+
+  void setCategoryFilter(String? category) {
+    state = state.copyWith(categoryFilter: category);
+  }
+
+  void setPriorityFilter(String? priority) {
+    state = state.copyWith(priorityFilter: priority);
+  }
+
+  void setSortBy(TaskSortBy sortBy) {
+    state = state.copyWith(sortBy: sortBy);
+  }
+
+  void toggleSortDirection() {
+    state = state.copyWith(isSortAscending: !state.isSortAscending);
+  }
+
+  void resetFilters() {
+    state = state.copyWith(
+      searchQuery: '',
+      statusFilter: TaskStatusFilter.all,
+      categoryFilter: null,
+      priorityFilter: null,
+      sortBy: TaskSortBy.createdAt,
+      isSortAscending: false,
+    );
+  }
 }
+

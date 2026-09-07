@@ -8,6 +8,11 @@ import 'package:smart_task_manager/src/design_system/widgets/buttons/primary_but
 import 'package:smart_task_manager/src/design_system/widgets/cards/app_card.dart';
 import 'package:smart_task_manager/src/features/tasks/domain/entities/task_entity.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/notifiers/task_list_notifier.dart';
+import 'package:smart_task_manager/src/features/tasks/presentation/widgets/task_card_item.dart';
+import 'package:smart_task_manager/src/features/tasks/presentation/widgets/task_filter_chips.dart';
+import 'package:smart_task_manager/src/features/tasks/presentation/widgets/task_list_empty_view.dart';
+import 'package:smart_task_manager/src/features/tasks/presentation/widgets/task_search_bar.dart';
+import 'package:smart_task_manager/src/features/tasks/presentation/widgets/task_sort_sheet.dart';
 
 class TaskListScreen extends ConsumerStatefulWidget {
   const TaskListScreen({super.key});
@@ -41,11 +46,6 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
     }
   }
 
-  String _formatCreatedDate(DateTime? date) {
-    if (date == null) return 'Created: N/A';
-    return 'Created: ${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
-
   void _showDeleteConfirmation(BuildContext parentContext, TaskEntity task) {
     final colors = parentContext.appColors;
 
@@ -64,7 +64,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
             ),
           ),
           content: Text(
-            'Are you sure you want to delete "${task.title}"? This action cannot be undone.',
+            'Are you sure you want to delete "${task.title}"? This will delete the task from server and update local database.',
             style: parentContext.textTheme.bodyMedium?.copyWith(
               color: colors.subText,
             ),
@@ -93,7 +93,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
                 if (parentContext.mounted && success) {
                   ScaffoldMessenger.of(parentContext).showSnackBar(
                     const SnackBar(
-                      content: Text('Task deleted successfully'),
+                      content: Text('Task deleted and local database updated.'),
                       behavior: SnackBarBehavior.floating,
                     ),
                   );
@@ -111,11 +111,17 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     final state = ref.watch(taskListProvider);
+    final notifier = ref.read(taskListProvider.notifier);
+
+    final displayTasks = state.filteredAndSortedTasks;
+    final isFiltered = state.searchQuery.isNotEmpty ||
+        state.categoryFilter != null ||
+        state.priorityFilter != null;
 
     return Scaffold(
       backgroundColor: colors.surface,
       appBar: AppBar(
-        title: const Text('All Tasks'),
+        title: const Text('Tasks Manager'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.pop(),
@@ -149,7 +155,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
-                    'Offline Mode — Showing local cached tasks',
+                    'Offline Mode — Loaded from local SQLite database',
                     style: context.textTheme.labelMedium?.copyWith(
                       color: Colors.orange,
                       fontWeight: FontWeight.w600,
@@ -159,10 +165,47 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
               ),
             ),
 
+          // Search & Filter Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              AppSpacing.xs,
+            ),
+            child: Column(
+              children: [
+                TaskSearchBar(
+                  onSearchChanged: (query) => notifier.setSearchQuery(query),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                TaskFilterChips(
+                  selectedStatus: state.statusFilter,
+                  onStatusSelected: (filter) =>
+                      notifier.setStatusFilter(filter),
+                  selectedCategory: state.categoryFilter,
+                  onCategorySelected: (cat) => notifier.setCategoryFilter(cat),
+                  selectedPriority: state.priorityFilter,
+                  onPrioritySelected: (prio) =>
+                      notifier.setPriorityFilter(prio),
+                  onOpenSortModal: () => TaskSortSheet.show(
+                    context,
+                    selectedSort: state.sortBy,
+                    isAscending: state.isSortAscending,
+                    onSortSelected: (sort) => notifier.setSortBy(sort),
+                    onToggleDirection: () => notifier.toggleSortDirection(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          // Body with Refresh & Paginated List
           Expanded(
             child: RefreshIndicator(
-              onRefresh: () =>
-                  ref.read(taskListProvider.notifier).refreshTasks(),
+              onRefresh: () => notifier.refreshTasks(),
               child: Skeletonizer(
                 enabled: state.isLoading,
                 child: state.isLoading
@@ -174,16 +217,9 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
                         itemBuilder: (context, index) {
                           return AppCard(
                             child: ListTile(
-                              title: const Text('Loading task item title...'),
-                              subtitle: const Text('Created: 2026-09-08'),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: const [
-                                  Icon(Icons.visibility_outlined),
-                                  SizedBox(width: 8),
-                                  Icon(Icons.delete_outline_rounded),
-                                ],
-                              ),
+                              title: const Text('Loading task title placeholder...'),
+                              subtitle: const Text('Work • High • Due: 2026-09-08'),
+                              trailing: const Icon(Icons.chevron_right_rounded),
                             ),
                           );
                         },
@@ -192,7 +228,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
                         ? SingleChildScrollView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             child: SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.7,
+                              height: MediaQuery.of(context).size.height * 0.6,
                               child: Center(
                                 child: Padding(
                                   padding: const EdgeInsets.all(AppSpacing.xl),
@@ -227,10 +263,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
                                         text: 'Retry',
                                         fullWidth: false,
                                         icon: Icons.refresh_rounded,
-                                        onPressed: () => ref
-                                            .read(
-                                                taskListProvider.notifier)
-                                            .fetchInitialTasks(),
+                                        onPressed: () => notifier.fetchInitialTasks(),
                                       ),
                                     ],
                                   ),
@@ -238,65 +271,21 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
                               ),
                             ),
                           )
-                        : state.tasks.isEmpty
-                            ? SingleChildScrollView(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                child: SizedBox(
-                                  height: MediaQuery.of(context).size.height * 0.7,
-                                  child: Center(
-                                    child: Padding(
-                                      padding:
-                                          const EdgeInsets.all(AppSpacing.xl),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.assignment_outlined,
-                                            size: 72,
-                                            color: colors.subText
-                                                .withValues(alpha: 0.5),
-                                          ),
-                                          const SizedBox(height: AppSpacing.md),
-                                          Text(
-                                            'No Tasks Available',
-                                            style: context.textTheme.titleLarge
-                                                ?.copyWith(
-                                              color: colors.mainText,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: AppSpacing.xs),
-                                          Text(
-                                            'Create your first task to get started',
-                                            style: context.textTheme.bodyMedium
-                                                ?.copyWith(
-                                              color: colors.subText,
-                                            ),
-                                          ),
-                                          const SizedBox(height: AppSpacing.xl),
-                                          PrimaryButton(
-                                            text: 'Create New Task',
-                                            fullWidth: false,
-                                            icon: Icons.add_rounded,
-                                            onPressed: () =>
-                                                context.push('/create-task'),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                        : displayTasks.isEmpty
+                            ? TaskListEmptyView(
+                                isFiltered: isFiltered,
+                                onResetFilters: () => notifier.resetFilters(),
                               )
                             : ListView.separated(
+                                physics: const AlwaysScrollableScrollPhysics(),
                                 controller: _scrollController,
                                 padding: const EdgeInsets.all(AppSpacing.md),
-                                itemCount: state.tasks.length +
+                                itemCount: displayTasks.length +
                                     (state.isLoadingMore ? 1 : 0),
                                 separatorBuilder: (_, _) =>
                                     const SizedBox(height: AppSpacing.sm),
                                 itemBuilder: (context, index) {
-                                  if (index == state.tasks.length) {
+                                  if (index == displayTasks.length) {
                                     return const Padding(
                                       padding:
                                           EdgeInsets.symmetric(vertical: AppSpacing.md),
@@ -305,120 +294,26 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
                                           width: 24,
                                           height: 24,
                                           child: CircularProgressIndicator(
-                                              strokeWidth: 2),
+                                            strokeWidth: 2,
+                                          ),
                                         ),
                                       ),
                                     );
                                   }
 
-                                  final task = state.tasks[index];
+                                  final task = displayTasks[index];
                                   final isDeleting =
                                       state.deletingTaskId == task.id;
 
-                                  return AppCard(
-                                    child: InkWell(
-                                      onTap: () => context.push(
-                                        '/task-detail',
-                                        extra: task,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Padding(
-                                        padding:
-                                            const EdgeInsets.all(AppSpacing.xs),
-                                        child: Row(
-                                          children: [
-                                            // Priority indicator bar
-                                            Container(
-                                              width: 4,
-                                              height: 40,
-                                              decoration: BoxDecoration(
-                                                color: task.isCompleted
-                                                    ? Colors.green
-                                                    : colors.primary,
-                                                borderRadius:
-                                                    BorderRadius.circular(2),
-                                              ),
-                                            ),
-                                            const SizedBox(width: AppSpacing.md),
-
-                                            // Task Title and Created Date
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    task.title,
-                                                    style: context
-                                                        .textTheme.titleMedium
-                                                        ?.copyWith(
-                                                      color: colors.mainText,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      decoration: task.isCompleted
-                                                          ? TextDecoration
-                                                              .lineThrough
-                                                          : null,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                  const SizedBox(
-                                                      height: AppSpacing.xxs),
-                                                  Text(
-                                                    _formatCreatedDate(
-                                                        task.createdAt),
-                                                    style: context
-                                                        .textTheme.bodySmall
-                                                        ?.copyWith(
-                                                      color: colors.subText,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-
-                                            // View Details Icon Button
-                                            IconButton(
-                                              icon: Icon(
-                                                Icons.visibility_outlined,
-                                                color: colors.mainText,
-                                                size: 20,
-                                              ),
-                                              tooltip: 'View Details',
-                                              onPressed: () => context.push(
-                                                '/task-detail',
-                                                extra: task,
-                                              ),
-                                            ),
-
-                                            // Delete Icon Button
-                                            isDeleting
-                                                ? const SizedBox(
-                                                    width: 20,
-                                                    height: 20,
-                                                    child: CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                    ),
-                                                  )
-                                                : IconButton(
-                                                    icon: Icon(
-                                                      Icons.delete_outline_rounded,
-                                                      color: colors.error,
-                                                      size: 20,
-                                                    ),
-                                                    tooltip: 'Delete Task',
-                                                    onPressed: () =>
-                                                        _showDeleteConfirmation(
-                                                      context,
-                                                      task,
-                                                    ),
-                                                  ),
-                                          ],
-                                        ),
-                                      ),
+                                  return TaskCardItem(
+                                    task: task,
+                                    isDeleting: isDeleting,
+                                    onTap: () => context.push(
+                                      '/task-detail',
+                                      extra: task,
                                     ),
+                                    onDeletePressed: () =>
+                                        _showDeleteConfirmation(context, task),
                                   );
                                 },
                               ),
