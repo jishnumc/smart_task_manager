@@ -315,6 +315,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
                                     onDeletePressed: () =>
                                         _showDeleteConfirmation(context, task),
                                   );
+
                                 },
                               ),
               ),

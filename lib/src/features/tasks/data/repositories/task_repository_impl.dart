@@ -1,6 +1,9 @@
 import 'package:smart_task_manager/src/features/tasks/data/datasources/task_local_datasource.dart';
 import 'package:smart_task_manager/src/features/tasks/data/datasources/task_remote_datasource.dart';
 import 'package:smart_task_manager/src/features/tasks/data/models/task_create_request_model.dart';
+import 'package:smart_task_manager/src/features/tasks/data/models/task_data_model.dart';
+import 'package:smart_task_manager/src/features/tasks/data/models/task_update_request_model.dart';
+import 'package:smart_task_manager/src/features/tasks/domain/entities/task_entity.dart';
 import 'package:smart_task_manager/src/features/tasks/domain/repositories/task_repository.dart';
 import 'package:smart_task_manager/src/outer_layer/clients/storage_client.dart';
 import 'package:smart_task_manager/src/outer_layer/network/network_info.dart';
@@ -164,5 +167,55 @@ class TaskRepositoryImpl implements TaskRepository {
     // Update local DB after deletion
     await _localDataSource.deleteTask(taskId);
   }
+
+  @override
+  Future<TaskEntity> updateTask({
+    required String taskId,
+    required TaskUpdateRequestModel payload,
+  }) async {
+    final userId = _storageClient.read<String>('user_id') ?? 'default_user';
+    final isConnected = await _networkInfo.isConnected;
+
+    if (isConnected) {
+      try {
+        final apiResponse = await _remoteDataSource.updateTask(
+          taskId: taskId,
+          userId: userId,
+          payload: payload,
+        );
+
+        final remoteTaskModel = apiResponse.data;
+        if (remoteTaskModel != null) {
+          try {
+            await _localDataSource.updateTaskInLocal(task: remoteTaskModel);
+          } catch (_) {}
+
+          return remoteTaskModel.toEntity();
+        }
+      } on NetworkException {
+        // Fallback
+      } catch (e) {
+        if (e is AppException) rethrow;
+        throw ServerException(e.toString());
+      }
+    }
+
+    final nowStr = DateTime.now().toIso8601String();
+    final updatedModel = TaskDataModel(
+      id: taskId,
+      userId: userId,
+      title: payload.title ?? '',
+      description: payload.description ?? '',
+      isCompleted: payload.isCompleted ?? false,
+      dueDate: payload.dueDate ?? nowStr,
+      priority: payload.priority ?? 'Medium',
+      category: payload.category ?? 'Work',
+      updatedAt: nowStr,
+    );
+
+    await _localDataSource.updateTaskInLocal(task: updatedModel);
+    return updatedModel.toEntity();
+  }
 }
+
 

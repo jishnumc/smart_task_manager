@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:smart_task_manager/src/features/tasks/data/models/task_api_response_model.dart';
 import 'package:smart_task_manager/src/features/tasks/data/models/task_create_request_model.dart';
 import 'package:smart_task_manager/src/features/tasks/data/models/task_list_api_response_model.dart';
+import 'package:smart_task_manager/src/features/tasks/data/models/task_update_request_model.dart';
 import 'package:smart_task_manager/src/outer_layer/clients/api_client.dart';
 import 'package:smart_task_manager/src/system/exceptions/app_exception.dart';
 
@@ -21,6 +22,12 @@ abstract class TaskRemoteDataSource {
   Future<void> deleteTask({
     required String taskId,
     required String userId,
+  });
+
+  Future<TaskApiResponseModel> updateTask({
+    required String taskId,
+    required String userId,
+    required TaskUpdateRequestModel payload,
   });
 }
 
@@ -109,6 +116,35 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
       throw ServerException(e.toString());
     }
   }
+
+  @override
+  Future<TaskApiResponseModel> updateTask({
+    required String taskId,
+    required String userId,
+    required TaskUpdateRequestModel payload,
+  }) async {
+    try {
+      final response = await _apiClient.dio.put<Map<String, dynamic>>(
+        '/tasks/$taskId',
+        queryParameters: {
+          'user_id': userId,
+        },
+        data: payload.toJson(),
+      );
+
+      final data = response.data;
+      if (data == null) {
+        throw const ServerException('Empty response received from server.');
+      }
+      return TaskApiResponseModel.fromJson(data);
+    } on DioException catch (e) {
+      _handleDioException(e);
+    } catch (e) {
+      if (e is AppException) rethrow;
+      throw ServerException(e.toString());
+    }
+  }
+
 
 
   Never _handleDioException(DioException e) {

@@ -104,6 +104,7 @@ class TaskCardItem extends StatelessWidget {
                         ),
                 ],
               ),
+
               const SizedBox(height: AppSpacing.xs),
 
               // Badges & Dates Row

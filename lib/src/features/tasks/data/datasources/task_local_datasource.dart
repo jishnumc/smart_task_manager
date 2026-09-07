@@ -24,6 +24,10 @@ abstract class TaskLocalDataSource {
   });
 
   Future<void> deleteTask(String id);
+
+  Future<void> updateTaskInLocal({
+    required TaskDataModel task,
+  });
 }
 
 /// Implementation of [TaskLocalDataSource] using [SqliteDatabaseClient].
@@ -141,5 +145,29 @@ class TaskLocalDataSourceImpl implements TaskLocalDataSource {
       throw CacheException('Failed to delete task from local database: $e');
     }
   }
+
+  @override
+  Future<void> updateTaskInLocal({
+    required TaskDataModel task,
+  }) async {
+    try {
+      final map = <String, dynamic>{
+        'user_id': task.userId,
+        'remote_id': task.id.toString(),
+        'title': task.title,
+        'description': task.description,
+        'is_completed': task.isCompleted ? 1 : 0,
+        'due_date': task.dueDate,
+        'priority': task.priority,
+        'category': task.category,
+        'is_synced': 1,
+        'updated_at': task.updatedAt ?? DateTime.now().toIso8601String(),
+      };
+      await _sqliteClient.insertTask(map);
+    } catch (e) {
+      throw CacheException('Failed to update task in local database: $e');
+    }
+  }
 }
+
 

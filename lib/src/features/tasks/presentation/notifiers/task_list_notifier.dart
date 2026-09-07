@@ -1,6 +1,8 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:smart_task_manager/src/features/tasks/data/models/task_update_request_model.dart';
 import 'package:smart_task_manager/src/features/tasks/domain/usecases/delete_task_usecase.dart';
 import 'package:smart_task_manager/src/features/tasks/domain/usecases/get_tasks_usecase.dart';
+import 'package:smart_task_manager/src/features/tasks/domain/usecases/update_task_usecase.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/notifiers/create_task_notifier.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/notifiers/task_filter_enums.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/notifiers/task_list_state.dart';
@@ -165,5 +167,32 @@ class TaskListNotifier extends _$TaskListNotifier {
       isSortAscending: false,
     );
   }
+
+  Future<bool> updateTask({
+    required String taskId,
+    required TaskUpdateRequestModel payload,
+  }) async {
+    try {
+      final repository = ref.read(taskRepositoryProvider);
+      final useCase = UpdateTaskUseCase(repository);
+
+      final updatedEntity = await useCase(
+        taskId: taskId,
+        payload: payload,
+      );
+
+      final updatedTasks = state.tasks.map((t) {
+        if (t.id == taskId) return updatedEntity;
+        return t;
+      }).toList();
+
+      state = state.copyWith(tasks: updatedTasks);
+      return true;
+    } catch (e) {
+      state = state.copyWith(errorMessage: e.toString());
+      return false;
+    }
+  }
 }
+
 

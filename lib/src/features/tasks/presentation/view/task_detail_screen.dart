@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:smart_task_manager/src/design_system/extensions/theme_extensions.dart';
 import 'package:smart_task_manager/src/design_system/spacing/app_spacing.dart';
+import 'package:smart_task_manager/src/design_system/widgets/buttons/primary_button.dart';
+import 'package:smart_task_manager/src/design_system/widgets/buttons/secondary_button.dart';
 import 'package:smart_task_manager/src/design_system/widgets/cards/app_card.dart';
 import 'package:smart_task_manager/src/features/tasks/domain/entities/task_entity.dart';
+import 'package:smart_task_manager/src/features/tasks/presentation/notifiers/task_list_notifier.dart';
+import 'package:smart_task_manager/src/features/tasks/presentation/widgets/update_task_bottom_sheet.dart';
 
-class TaskDetailScreen extends StatelessWidget {
+class TaskDetailScreen extends ConsumerStatefulWidget {
   const TaskDetailScreen({
     super.key,
     required this.task,
@@ -13,15 +18,75 @@ class TaskDetailScreen extends StatelessWidget {
 
   final TaskEntity task;
 
+  @override
+  ConsumerState<TaskDetailScreen> createState() => _TaskDetailScreenState();
+}
+
+class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
+  late TaskEntity _currentTask;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentTask = widget.task;
+  }
+
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  void _openUpdateBottomSheet() {
+    UpdateTaskBottomSheet.show(
+      context,
+      task: _currentTask,
+      onUpdate: (payload) async {
+        final notifier = ref.read(taskListProvider.notifier);
+        final success = await notifier.updateTask(
+          taskId: _currentTask.id,
+          payload: payload,
+        );
+
+        if (mounted && success) {
+          final updatedState = ref.read(taskListProvider);
+          final updatedTask = updatedState.tasks.firstWhere(
+            (t) => t.id == _currentTask.id,
+            orElse: () => TaskEntity(
+              id: _currentTask.id,
+              userId: _currentTask.userId,
+              title: payload.title ?? _currentTask.title,
+              description: payload.description ?? _currentTask.description,
+              isCompleted: payload.isCompleted ?? _currentTask.isCompleted,
+              dueDate: payload.dueDate != null
+                  ? (DateTime.tryParse(payload.dueDate!) ?? _currentTask.dueDate)
+                  : _currentTask.dueDate,
+              priority: payload.priority ?? _currentTask.priority,
+              category: payload.category ?? _currentTask.category,
+              createdAt: _currentTask.createdAt,
+              updatedAt: DateTime.now(),
+            ),
+          );
+
+          setState(() {
+            _currentTask = updatedTask;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Task updated successfully!'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return success;
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
 
-    final statusColor = task.isCompleted ? Colors.green : Colors.orange;
+    final statusColor = _currentTask.isCompleted ? Colors.green : Colors.orange;
 
     return Scaffold(
       backgroundColor: colors.surface,
@@ -46,7 +111,7 @@ class TaskDetailScreen extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          task.title,
+                          _currentTask.title,
                           style: context.textTheme.headlineSmall?.copyWith(
                             color: colors.mainText,
                             fontWeight: FontWeight.bold,
@@ -66,7 +131,7 @@ class TaskDetailScreen extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              task.isCompleted
+                              _currentTask.isCompleted
                                   ? Icons.check_circle_outline_rounded
                                   : Icons.pending_actions_rounded,
                               size: 16,
@@ -74,7 +139,7 @@ class TaskDetailScreen extends StatelessWidget {
                             ),
                             const SizedBox(width: AppSpacing.xs),
                             Text(
-                              task.isCompleted ? 'Completed' : 'Pending',
+                              _currentTask.isCompleted ? 'Completed' : 'Pending',
                               style: context.textTheme.labelMedium?.copyWith(
                                 color: statusColor,
                                 fontWeight: FontWeight.bold,
@@ -86,7 +151,7 @@ class TaskDetailScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  if (task.description.isNotEmpty) ...[
+                  if (_currentTask.description.isNotEmpty) ...[
                     Text(
                       'Description',
                       style: context.textTheme.labelLarge?.copyWith(
@@ -96,7 +161,7 @@ class TaskDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      task.description,
+                      _currentTask.description,
                       style: context.textTheme.bodyMedium?.copyWith(
                         color: colors.mainText,
                       ),
@@ -108,12 +173,12 @@ class TaskDetailScreen extends StatelessWidget {
                     runSpacing: AppSpacing.sm,
                     children: [
                       _DetailBadge(
-                        label: 'Priority: ${task.priority}',
+                        label: 'Priority: ${_currentTask.priority}',
                         icon: Icons.flag_outlined,
                         colors: colors,
                       ),
                       _DetailBadge(
-                        label: 'Category: ${task.category}',
+                        label: 'Category: ${_currentTask.category}',
                         icon: Icons.folder_outlined,
                         colors: colors,
                       ),
@@ -129,24 +194,24 @@ class TaskDetailScreen extends StatelessWidget {
                   _MetaTile(
                     icon: Icons.calendar_today_rounded,
                     title: 'Due Date',
-                    value: _formatDate(task.dueDate),
+                    value: _formatDate(_currentTask.dueDate),
                     colors: colors,
                   ),
                   const Divider(height: AppSpacing.lg),
                   _MetaTile(
                     icon: Icons.access_time_rounded,
                     title: 'Created At',
-                    value: task.createdAt != null
-                        ? _formatDate(task.createdAt!)
+                    value: _currentTask.createdAt != null
+                        ? _formatDate(_currentTask.createdAt!)
                         : 'N/A',
                     colors: colors,
                   ),
-                  if (task.updatedAt != null) ...[
+                  if (_currentTask.updatedAt != null) ...[
                     const Divider(height: AppSpacing.lg),
                     _MetaTile(
                       icon: Icons.update_rounded,
                       title: 'Updated At',
-                      value: _formatDate(task.updatedAt!),
+                      value: _formatDate(_currentTask.updatedAt!),
                       colors: colors,
                     ),
                   ],
@@ -154,6 +219,42 @@ class TaskDetailScreen extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+
+      // Bottom Action Bar with Update and Back buttons
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Row(
+            children: [
+              Expanded(
+                child: SecondaryButton(
+                  text: 'Back',
+                  icon: Icons.arrow_back_rounded,
+                  onPressed: () => context.pop(),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: PrimaryButton(
+                  text: 'Update Task',
+                  icon: Icons.edit_note_rounded,
+                  onPressed: _openUpdateBottomSheet,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

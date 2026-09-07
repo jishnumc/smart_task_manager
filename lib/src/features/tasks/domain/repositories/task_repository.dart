@@ -1,4 +1,5 @@
 import 'package:smart_task_manager/src/features/tasks/data/models/task_create_request_model.dart';
+import 'package:smart_task_manager/src/features/tasks/data/models/task_update_request_model.dart';
 import 'package:smart_task_manager/src/features/tasks/domain/entities/task_entity.dart';
 
 /// Result object returned after creating a task.
@@ -36,5 +37,11 @@ abstract class TaskRepository {
   });
 
   Future<void> deleteTask(String taskId);
+
+  Future<TaskEntity> updateTask({
+    required String taskId,
+    required TaskUpdateRequestModel payload,
+  });
 }
+
 
