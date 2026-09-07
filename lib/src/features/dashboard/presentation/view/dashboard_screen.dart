@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:smart_task_manager/src/design_system/extensions/theme_extensions.dart';
 import 'package:smart_task_manager/src/design_system/spacing/app_spacing.dart';
 import 'package:smart_task_manager/src/design_system/theme/theme_mode_provider.dart';
@@ -7,6 +8,8 @@ import 'package:smart_task_manager/src/design_system/widgets/widgets.dart';
 import 'package:smart_task_manager/src/features/auth/domain/entities/user_entity.dart';
 import 'package:smart_task_manager/src/features/auth/presentation/notifiers/auth_notifier.dart';
 import 'package:smart_task_manager/src/features/auth/presentation/notifiers/auth_state.dart';
+
+import 'package:skeletonizer/skeletonizer.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -70,205 +73,266 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final colors = context.appColors;
     final authState = ref.watch(authProvider);
 
-    if (authState is! Authenticated) {
-      return const Scaffold(
-        body: AppLoadingIndicator(message: 'Loading dashboard...'),
-      );
-    }
+    final isLoading = authState is! Authenticated;
+    final user = authState is Authenticated
+        ? authState.user
+        : UserEntity(
+            id: 'dummy',
+            email: 'loading.user@example.com',
+            name: 'Task Manager User',
+            createdAt: DateTime.now(),
+          );
 
-    final user = authState.user;
-    _populateUserData(user);
+    if (!isLoading) {
+      _populateUserData(user);
+    }
 
     return Scaffold(
       backgroundColor: colors.surface,
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        centerTitle: false,
-        actions: [
-          IconButton(
-            icon: Icon(
-              context.isDarkMode
-                  ? Icons.dark_mode_rounded
-                  : Icons.light_mode_rounded,
-              color: colors.primary,
-            ),
-            tooltip: 'Toggle Theme Quick Action',
-            onPressed: () {
-              final newMode = context.isDarkMode
-                  ? ThemeMode.light
-                  : ThemeMode.dark;
-              setState(() => _selectedThemeMode = newMode);
-              ref.read(themeModeProvider.notifier).toggleTheme();
-              ref.read(authProvider.notifier).updateProfile(
-                    name: user.name,
-                    themeMode: newMode,
-                  );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Sign Out',
-            onPressed: () {
-              ref.read(authProvider.notifier).signOut();
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User Header Profile Card
-            AppCard(
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: colors.primary.withValues(alpha: 0.2),
-                    child: Text(
-                      user.name.isNotEmpty
-                          ? user.name[0].toUpperCase()
-                          : 'U',
-                      style: context.textTheme.headlineMedium?.copyWith(
-                        color: colors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          user.name,
-                          style: context.textTheme.titleLarge?.copyWith(
-                            color: colors.mainText,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          user.email,
-                          style: context.textTheme.bodyMedium?.copyWith(
-                            color: colors.subText,
-                          ),
-                        ),
-                        if (user.createdAt != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Member since: ${_formatDate(user.createdAt!)}',
-                            style: context.textTheme.labelSmall?.copyWith(
-                              color: colors.subText.withValues(alpha: 0.8),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-
-            // Profile Edit Form Section Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Profile Settings',
-                  style: context.textTheme.titleMedium?.copyWith(
-                    color: colors.mainText,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _isEditing = !_isEditing;
-                      if (!_isEditing) {
-                        _nameController.text = user.name;
-                        _selectedThemeMode = user.themeMode;
-                      }
-                    });
-                  },
+      body: Skeletonizer(
+        enabled: isLoading,
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              floating: true,
+              title: const Text('Dashboard'),
+              centerTitle: false,
+              actions: [
+                IconButton(
                   icon: Icon(
-                    _isEditing ? Icons.close_rounded : Icons.edit_rounded,
-                    size: 18,
+                    context.isDarkMode
+                        ? Icons.dark_mode_rounded
+                        : Icons.light_mode_rounded,
+                    color: colors.primary,
                   ),
-                  label: Text(_isEditing ? 'Cancel' : 'Edit Profile'),
+                  tooltip: 'Toggle Theme Quick Action',
+                  onPressed: () {
+                    final newMode = context.isDarkMode
+                        ? ThemeMode.light
+                        : ThemeMode.dark;
+                    setState(() => _selectedThemeMode = newMode);
+                    ref.read(themeModeProvider.notifier).toggleTheme();
+                    ref.read(authProvider.notifier).updateProfile(
+                          name: user.name,
+                          themeMode: newMode,
+                        );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.logout_rounded),
+                  tooltip: 'Sign Out',
+                  onPressed: () {
+                    ref.read(authProvider.notifier).signOut();
+                  },
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.sm),
-
-            // Profile Edit Card
-            AppCard(
-              child: Form(
-                key: _formKey,
+            SliverToBoxAdapter(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AppTextField(
-                      label: 'Full Name',
-                      controller: _nameController,
-                      enabled: _isEditing,
-                      prefixIcon: Icons.person_outline_rounded,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Name cannot be empty';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-
-                    AppTextField(
-                      label: 'Email (Read Only)',
-                      controller: TextEditingController(text: user.email),
-                      enabled: false,
-                      prefixIcon: Icons.email_outlined,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // Theme Preference Selection
-                    Text(
-                      'Theme Preference',
-                      style: context.textTheme.labelMedium?.copyWith(
-                        color: colors.mainText,
-                        fontWeight: FontWeight.w600,
+                    // User Header Profile Card
+                    AppCard(
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 30,
+                            backgroundColor: colors.primary.withValues(alpha: 0.2),
+                            child: Text(
+                              user.name.isNotEmpty
+                                  ? user.name[0].toUpperCase()
+                                  : 'U',
+                              style: context.textTheme.headlineMedium?.copyWith(
+                                color: colors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  user.name,
+                                  style: context.textTheme.titleLarge?.copyWith(
+                                    color: colors.mainText,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  user.email,
+                                  style: context.textTheme.bodyMedium?.copyWith(
+                                    color: colors.subText,
+                                  ),
+                                ),
+                                if (user.createdAt != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Member since: ${_formatDate(user.createdAt!)}',
+                                    style: context.textTheme.labelSmall?.copyWith(
+                                      color: colors.subText.withValues(alpha: 0.8),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Wrap(
-                      spacing: AppSpacing.sm,
+                    const SizedBox(height: AppSpacing.xl),
+
+                    // Task Quick Actions Header
+                    Text(
+                      'Quick Actions',
+                      style: context.textTheme.titleMedium?.copyWith(
+                        color: colors.mainText,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+
+                    // Two Action Cards: Create Task & View All Tasks
+                    Row(
                       children: [
-                        _buildThemeChip(
-                          label: 'Dark Theme',
-                          mode: ThemeMode.dark,
-                          icon: Icons.dark_mode_outlined,
+                        Expanded(
+                          child: _buildActionCard(
+                            context: context,
+                            title: 'Create Task',
+                            subtitle: 'Add a new task',
+                            icon: Icons.add_task_rounded,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            onTap: () => context.push('/create-task'),
+                          ),
                         ),
-                        _buildThemeChip(
-                          label: 'Light Theme',
-                          mode: ThemeMode.light,
-                          icon: Icons.light_mode_outlined,
-                        ),
-                        _buildThemeChip(
-                          label: 'System Theme',
-                          mode: ThemeMode.system,
-                          icon: Icons.settings_brightness_outlined,
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: _buildActionCard(
+                            context: context,
+                            title: 'View All Tasks',
+                            subtitle: 'Manage all tasks',
+                            icon: Icons.task_alt_rounded,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF0EA5E9), Color(0xFF10B981)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            onTap: () => context.push('/tasks'),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    if (_isEditing)
-                      PrimaryButton(
-                        text: 'Save Changes',
-                        isLoading: _isSaving,
-                        onPressed: _saveProfile,
+                    // Profile Edit Form Section Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Profile Settings',
+                          style: context.textTheme.titleMedium?.copyWith(
+                            color: colors.mainText,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _isEditing = !_isEditing;
+                              if (!_isEditing) {
+                                _nameController.text = user.name;
+                                _selectedThemeMode = user.themeMode;
+                              }
+                            });
+                          },
+                          icon: Icon(
+                            _isEditing ? Icons.close_rounded : Icons.edit_rounded,
+                            size: 18,
+                          ),
+                          label: Text(_isEditing ? 'Cancel' : 'Edit Profile'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+
+                    // Profile Edit Card
+                    AppCard(
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AppTextField(
+                              label: 'Full Name',
+                              controller: _nameController,
+                              enabled: _isEditing,
+                              prefixIcon: Icons.person_outline_rounded,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Name cannot be empty';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+
+                            AppTextField(
+                              label: 'Email (Read Only)',
+                              controller: TextEditingController(text: user.email),
+                              enabled: false,
+                              prefixIcon: Icons.email_outlined,
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+
+                            // Theme Preference Selection
+                            Text(
+                              'Theme Preference',
+                              style: context.textTheme.labelMedium?.copyWith(
+                                color: colors.mainText,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Wrap(
+                              spacing: AppSpacing.sm,
+                              children: [
+                                _buildThemeChip(
+                                  label: 'Dark Theme',
+                                  mode: ThemeMode.dark,
+                                  icon: Icons.dark_mode_outlined,
+                                ),
+                                _buildThemeChip(
+                                  label: 'Light Theme',
+                                  mode: ThemeMode.light,
+                                  icon: Icons.light_mode_outlined,
+                                ),
+                                _buildThemeChip(
+                                  label: 'System Theme',
+                                  mode: ThemeMode.system,
+                                  icon: Icons.settings_brightness_outlined,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.xl),
+
+                            if (_isEditing)
+                              PrimaryButton(
+                                text: 'Save Changes',
+                                isLoading: _isSaving,
+                                onPressed: _saveProfile,
+                              ),
+                          ],
+                        ),
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -319,5 +383,80 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  Widget _buildActionCard({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Gradient gradient,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.xs),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        icon,
+                        size: 24,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 20,
+                      color: Colors.white70,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  title,
+                  style: context.textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: context.textTheme.labelSmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.85),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

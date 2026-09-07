@@ -6,6 +6,9 @@ import 'package:smart_task_manager/src/features/auth/presentation/notifiers/auth
 import 'package:smart_task_manager/src/features/auth/presentation/view/auth_screen.dart';
 import 'package:smart_task_manager/src/features/dashboard/presentation/view/dashboard_screen.dart';
 
+import 'package:smart_task_manager/src/features/tasks/presentation/view/create_task_screen.dart';
+import 'package:smart_task_manager/src/features/tasks/presentation/view/task_list_screen.dart';
+
 part 'app_router.g.dart';
 
 /// Listenable wrapper around Riverpod AuthNotifier for GoRouter refreshListenable.
@@ -57,6 +60,16 @@ GoRouter appRouter(Ref ref) {
         path: '/dashboard',
         name: 'dashboard',
         builder: (context, state) => const DashboardScreen(),
+      ),
+      GoRoute(
+        path: '/create-task',
+        name: 'create-task',
+        builder: (context, state) => const CreateTaskScreen(),
+      ),
+      GoRoute(
+        path: '/tasks',
+        name: 'tasks',
+        builder: (context, state) => const TaskListScreen(),
       ),
     ],
   );
