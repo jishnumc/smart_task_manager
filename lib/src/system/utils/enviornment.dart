@@ -1,5 +1,5 @@
 /// Environment configuration keys.
 class Environment {
-  /// Base API server URL (OpenTDB API).
-  static const String baseUrl = 'https://opentdb.com';
+  /// Base API server URL for task manager.
+  static const String baseUrl = 'https://taskmanager.uat-lplusltd.com/';
 }

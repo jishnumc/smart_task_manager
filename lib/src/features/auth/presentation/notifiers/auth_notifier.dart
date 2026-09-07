@@ -10,6 +10,7 @@ import 'package:smart_task_manager/src/features/auth/domain/usecases/sign_out_us
 import 'package:smart_task_manager/src/features/auth/domain/usecases/sign_up_usecase.dart';
 import 'package:smart_task_manager/src/features/auth/domain/usecases/update_user_profile_usecase.dart';
 import 'package:smart_task_manager/src/features/auth/presentation/notifiers/auth_state.dart';
+import 'package:smart_task_manager/src/outer_layer/clients/storage_client.dart';
 import 'package:smart_task_manager/src/system/exceptions/app_exception.dart';
 
 part 'auth_notifier.g.dart';
@@ -34,6 +35,7 @@ class AuthNotifier extends _$AuthNotifier {
       final user = await GetCurrentUserUseCase(repository)();
       if (user != null) {
         state = Authenticated(user);
+        await ref.read(storageClientProvider).save('user_id', user.id);
         ref.read(themeModeProvider.notifier).setThemeMode(user.themeMode);
       } else {
         state = const Unauthenticated();
@@ -55,6 +57,7 @@ class AuthNotifier extends _$AuthNotifier {
         password: password,
       );
       state = Authenticated(user);
+      await ref.read(storageClientProvider).save('user_id', user.id);
       ref.read(themeModeProvider.notifier).setThemeMode(user.themeMode);
     } on AppException catch (e) {
       state = AuthError(e.message);
@@ -77,6 +80,7 @@ class AuthNotifier extends _$AuthNotifier {
         name: name,
       );
       state = Authenticated(user);
+      await ref.read(storageClientProvider).save('user_id', user.id);
       ref.read(themeModeProvider.notifier).setThemeMode(user.themeMode);
     } on AppException catch (e) {
       state = AuthError(e.message);
@@ -90,6 +94,7 @@ class AuthNotifier extends _$AuthNotifier {
     try {
       final repository = ref.read(authRepositoryProvider);
       await SignOutUseCase(repository)();
+      await ref.read(storageClientProvider).delete('user_id');
       state = const Unauthenticated();
     } on AppException catch (e) {
       state = AuthError(e.message);
