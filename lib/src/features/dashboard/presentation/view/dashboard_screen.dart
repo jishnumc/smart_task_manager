@@ -39,8 +39,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   void _populateUserData(UserEntity user) {
     if (!_isEditing) {
-      _nameController.text = user.name;
-      _selectedThemeMode = user.themeMode;
+      if (_nameController.text.isEmpty) {
+        _nameController.text = user.name;
+      }
+      _selectedThemeMode = ref.read(themeModeProvider);
     }
   }
 
@@ -48,7 +50,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
-    await ref.read(authProvider.notifier).updateProfile(
+    await ref
+        .read(authProvider.notifier)
+        .updateProfile(
           name: _nameController.text,
           themeMode: _selectedThemeMode,
         );
@@ -111,10 +115,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(
-                'Cancel',
-                style: TextStyle(color: colors.subText),
-              ),
+              child: Text('Cancel', style: TextStyle(color: colors.subText)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -175,15 +176,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                   tooltip: 'Toggle Theme Quick Action',
                   onPressed: () {
-                    final newMode = context.isDarkMode
+                    final currentMode = ref.read(themeModeProvider);
+                    final newMode = currentMode == ThemeMode.dark
                         ? ThemeMode.light
                         : ThemeMode.dark;
                     setState(() => _selectedThemeMode = newMode);
-                    ref.read(themeModeProvider.notifier).toggleTheme();
-                    ref.read(authProvider.notifier).updateProfile(
-                          name: user.name,
-                          themeMode: newMode,
-                        );
+                    ref.read(themeModeProvider.notifier).setThemeMode(newMode);
+                    ref
+                        .read(authProvider.notifier)
+                        .updateProfile(name: user.name, themeMode: newMode);
                   },
                 ),
                 IconButton(
@@ -205,7 +206,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         children: [
                           CircleAvatar(
                             radius: 30,
-                            backgroundColor: colors.primary.withValues(alpha: 0.2),
+                            backgroundColor: colors.primary.withValues(
+                              alpha: 0.2,
+                            ),
                             child: Text(
                               user.name.isNotEmpty
                                   ? user.name[0].toUpperCase()
@@ -222,7 +225,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  user.name,
+                                  user.name.toUpperCase(),
                                   style: context.textTheme.titleLarge?.copyWith(
                                     color: colors.mainText,
                                     fontWeight: FontWeight.bold,
@@ -239,9 +242,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     'Member since: ${_formatDate(user.createdAt!)}',
-                                    style: context.textTheme.labelSmall?.copyWith(
-                                      color: colors.subText.withValues(alpha: 0.8),
-                                    ),
+                                    style: context.textTheme.labelSmall
+                                        ?.copyWith(
+                                          color: colors.subText.withValues(
+                                            alpha: 0.8,
+                                          ),
+                                        ),
                                   ),
                                 ],
                               ],
@@ -320,7 +326,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             });
                           },
                           icon: Icon(
-                            _isEditing ? Icons.close_rounded : Icons.edit_rounded,
+                            _isEditing
+                                ? Icons.close_rounded
+                                : Icons.edit_rounded,
                             size: 18,
                           ),
                           label: Text(_isEditing ? 'Cancel' : 'Edit Profile'),
@@ -352,7 +360,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                             AppTextField(
                               label: 'Email (Read Only)',
-                              controller: TextEditingController(text: user.email),
+                              controller: TextEditingController(
+                                text: user.email,
+                              ),
                               enabled: false,
                               prefixIcon: Icons.email_outlined,
                             ),
@@ -423,7 +433,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     required IconData icon,
   }) {
     final colors = context.appColors;
-    final isSelected = _selectedThemeMode == mode;
+    final activeThemeMode = ref.watch(themeModeProvider);
+    final isSelected =
+        (_isEditing ? _selectedThemeMode : activeThemeMode) == mode;
 
     return ChoiceChip(
       label: Row(
@@ -449,6 +461,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ? (selected) {
               if (selected) {
                 setState(() => _selectedThemeMode = mode);
+                ref.read(themeModeProvider.notifier).setThemeMode(mode);
               }
             }
           : null,
@@ -498,11 +511,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         color: Colors.white.withValues(alpha: 0.25),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        icon,
-                        size: 24,
-                        color: Colors.white,
-                      ),
+                      child: Icon(icon, size: 24, color: Colors.white),
                     ),
                     const Icon(
                       Icons.arrow_forward_rounded,

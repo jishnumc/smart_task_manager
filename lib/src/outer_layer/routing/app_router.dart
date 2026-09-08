@@ -94,4 +94,3 @@ GoRouter appRouter(Ref ref) {
     ],
   );
 }
-
