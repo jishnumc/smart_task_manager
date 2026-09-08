@@ -12,9 +12,13 @@ A feature-rich, offline-first Flutter task management application built followin
 - **Task Details View**: Detailed overview showing status badge, metadata, dates, description, and bottom action bar.
 - **Task Updating**: Update task completion status, title, description, priority, category, and due date via interactive modal bottom sheet from the details screen.
 - **Task Deletion**: Delete tasks with confirmation dialogs, automatically updating both remote REST API and local SQLite cache.
-- **Debounced Search**: Search tasks by title with client-side 300ms debouncing.
-- **Filtering**: Filter tasks by completion status (*All*, *Pending*, *Completed*), category, and priority.
-- **Sorting**: Multi-field sorting by *Due Date*, *Priority*, or *Created Date* in ascending or descending order.
+- **Task Search & Debouncing**: Search tasks by title with client-side 300ms debouncing.
+- **Filtering & Sorting**: Filter tasks by completion status (*All*, *Pending*, *Completed*), category, and priority. Multi-field sorting by *Due Date*, *Priority*, or *Created Date*.
+- **Offline Creation & Global Auto-Sync Workflow**:
+  - **Offline Task Creation**: Tasks created offline are stored locally with an `is_synced = 0` flag. Users receive a clean notification ("Network offline! Data saved.") without technical database jargon.
+  - **Connection Monitoring & Sync Dialog**: `SyncNotifier` monitors connectivity using `Connectivity`. When connection is restored, if unsynced tasks exist, a global dialog (`SyncPromptDialog`) prompts the user to sync data to the remote server.
+  - **Sequential POST Syncing**: Since the backend does not accept bulk arrays, unsynced tasks are posted individually (`POST /tasks/?user_id={user_id}`), updated with server IDs, and marked `is_synced = 1`.
+  - **Sign Out Sync Protection**: When logging out, `LogoutConfirmationDialog` checks for unsynced local tasks and allows users to "Sync & Sign Out", "Sign Out Anyway", or "Cancel".
 
 ---
 

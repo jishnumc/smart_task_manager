@@ -23,6 +23,15 @@ abstract class TaskLocalDataSource {
     int limit = 10,
   });
 
+  Future<List<TaskDataModel>> getUnsyncedTasks({
+    required String userId,
+  });
+
+  Future<void> markTaskAsSynced({
+    required String localOrRemoteId,
+    required String remoteId,
+  });
+
   Future<void> deleteTask(String id);
 
   Future<void> updateTaskInLocal({
@@ -118,20 +127,31 @@ class TaskLocalDataSourceImpl implements TaskLocalDataSource {
         offset: skip,
       );
 
-      return rows.map((row) {
-        return TaskDataModel(
-          id: row['remote_id'] ?? row['id'].toString(),
-          userId: row['user_id']?.toString() ?? userId,
-          title: row['title']?.toString() ?? '',
-          description: row['description']?.toString() ?? '',
-          isCompleted: (row['is_completed'] as int?) == 1,
-          dueDate: row['due_date']?.toString() ?? DateTime.now().toIso8601String(),
-          priority: row['priority']?.toString() ?? 'Medium',
-          category: row['category']?.toString() ?? 'Work',
-          createdAt: row['created_at']?.toString(),
-          updatedAt: row['updated_at']?.toString(),
-        );
-      }).toList();
+      final seenIds = <String>{};
+      final uniqueModels = <TaskDataModel>[];
+
+      for (final row in rows) {
+        final id = row['remote_id']?.toString() ?? row['id'].toString();
+        if (seenIds.add(id)) {
+          uniqueModels.add(
+            TaskDataModel(
+              id: id,
+              userId: row['user_id']?.toString() ?? userId,
+              title: row['title']?.toString() ?? '',
+              description: row['description']?.toString() ?? '',
+              isCompleted: (row['is_completed'] as int?) == 1,
+              dueDate: row['due_date']?.toString() ??
+                  DateTime.now().toIso8601String(),
+              priority: row['priority']?.toString() ?? 'Medium',
+              category: row['category']?.toString() ?? 'Work',
+              createdAt: row['created_at']?.toString(),
+              updatedAt: row['updated_at']?.toString(),
+            ),
+          );
+        }
+      }
+
+      return uniqueModels;
     } catch (e) {
       throw CacheException('Failed to fetch tasks from local database: $e');
     }
@@ -166,6 +186,44 @@ class TaskLocalDataSourceImpl implements TaskLocalDataSource {
       await _sqliteClient.insertTask(map);
     } catch (e) {
       throw CacheException('Failed to update task in local database: $e');
+    }
+  }
+
+  @override
+  Future<List<TaskDataModel>> getUnsyncedTasks({
+    required String userId,
+  }) async {
+    try {
+      final rows = await _sqliteClient.getUnsyncedTasks(userId: userId);
+      return rows.map((row) {
+        return TaskDataModel(
+          id: row['remote_id'] ?? row['id'].toString(),
+          userId: row['user_id']?.toString() ?? userId,
+          title: row['title']?.toString() ?? '',
+          description: row['description']?.toString() ?? '',
+          isCompleted: (row['is_completed'] as int?) == 1,
+          dueDate: row['due_date']?.toString() ??
+              DateTime.now().toIso8601String(),
+          priority: row['priority']?.toString() ?? 'Medium',
+          category: row['category']?.toString() ?? 'Work',
+          createdAt: row['created_at']?.toString(),
+          updatedAt: row['updated_at']?.toString(),
+        );
+      }).toList();
+    } catch (e) {
+      throw CacheException('Failed to fetch unsynced tasks: $e');
+    }
+  }
+
+  @override
+  Future<void> markTaskAsSynced({
+    required String localOrRemoteId,
+    required String remoteId,
+  }) async {
+    try {
+      await _sqliteClient.markTaskAsSynced(localOrRemoteId, remoteId);
+    } catch (e) {
+      throw CacheException('Failed to mark task as synced: $e');
     }
   }
 }

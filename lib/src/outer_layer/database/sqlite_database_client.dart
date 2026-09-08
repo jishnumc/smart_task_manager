@@ -49,6 +49,27 @@ class SqliteDatabaseClient {
 
   Future<int> insertTask(Map<String, dynamic> row) async {
     final db = await database;
+    final remoteId = row['remote_id']?.toString();
+
+    if (remoteId != null && remoteId.isNotEmpty) {
+      final existing = await db.query(
+        'tasks',
+        where: 'remote_id = ?',
+        whereArgs: [remoteId],
+        limit: 1,
+      );
+
+      if (existing.isNotEmpty) {
+        final existingId = existing.first['id'] as int;
+        return await db.update(
+          'tasks',
+          row,
+          where: 'id = ?',
+          whereArgs: [existingId],
+        );
+      }
+    }
+
     return await db.insert(
       'tasks',
       row,
@@ -82,21 +103,12 @@ class SqliteDatabaseClient {
 
   Future<int> updateTask(int id, Map<String, dynamic> row) async {
     final db = await database;
-    return await db.update(
-      'tasks',
-      row,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return await db.update('tasks', row, where: 'id = ?', whereArgs: [id]);
   }
 
   Future<int> deleteTask(int id) async {
     final db = await database;
-    return await db.delete(
-      'tasks',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<int> deleteTaskByRemoteOrLocalId(String idStr) async {
@@ -110,11 +122,46 @@ class SqliteDatabaseClient {
       );
       if (count > 0) return count;
     }
-    return await db.delete(
+    return await db.delete('tasks', where: 'remote_id = ?', whereArgs: [idStr]);
+  }
+
+  Future<List<Map<String, dynamic>>> getUnsyncedTasks({String? userId}) async {
+    final db = await database;
+    if (userId != null && userId.isNotEmpty) {
+      return await db.query(
+        'tasks',
+        where: '(user_id = ? OR user_id IS NULL OR user_id = "") AND is_synced = 0',
+        whereArgs: [userId],
+        orderBy: 'id ASC',
+      );
+    }
+    return await db.query('tasks', where: 'is_synced = 0', orderBy: 'id ASC');
+  }
+
+  Future<int> markTaskAsSynced(String localOrRemoteId, String remoteId) async {
+    final db = await database;
+    final parsedId = int.tryParse(localOrRemoteId);
+    final map = <String, dynamic>{
+      'remote_id': remoteId,
+      'is_synced': 1,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+
+    if (parsedId != null) {
+      final count = await db.update(
+        'tasks',
+        map,
+        where: 'id = ? OR remote_id = ?',
+        whereArgs: [parsedId, localOrRemoteId],
+      );
+      if (count > 0) return count;
+    }
+
+    return await db.update(
       'tasks',
+      map,
       where: 'remote_id = ?',
-      whereArgs: [idStr],
+      whereArgs: [localOrRemoteId],
     );
   }
 }
-

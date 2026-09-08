@@ -86,10 +86,12 @@ class TaskListNotifier extends _$TaskListNotifier {
     try {
       final repository = ref.read(taskRepositoryProvider);
       final useCase = GetTasksUseCase(repository);
-
       final result = await useCase(skip: state.skip, limit: state.limit);
 
-      final updatedTasks = [...state.tasks, ...result.tasks];
+      final existingIds = state.tasks.map((t) => t.id).toSet();
+      final newTasks =
+          result.tasks.where((t) => !existingIds.contains(t.id)).toList();
+      final updatedTasks = [...state.tasks, ...newTasks];
       final newSkip = state.skip + result.tasks.length;
       final hasMore = result.tasks.length >= state.limit;
 

@@ -26,6 +26,17 @@ class GetTasksResult {
   final bool isOfflineSaved;
 }
 
+/// Result object returned after syncing offline tasks.
+class SyncResult {
+  const SyncResult({
+    required this.syncedCount,
+    required this.failedCount,
+  });
+
+  final int syncedCount;
+  final int failedCount;
+}
+
 /// Abstract contract for Task repository.
 abstract class TaskRepository {
   Future<CreateTaskResult> createTask(TaskCreateRequestModel payload);
@@ -42,6 +53,10 @@ abstract class TaskRepository {
     required String taskId,
     required TaskUpdateRequestModel payload,
   });
+
+  Future<List<TaskEntity>> getUnsyncedTasks();
+
+  Future<SyncResult> syncOfflineTasks();
 }
 
 

@@ -11,6 +11,7 @@ NetworkInfo networkInfo(Ref ref) {
 /// Interface for checking network connection availability.
 abstract class NetworkInfo {
   Future<bool> get isConnected;
+  Stream<bool> get onConnectivityChanged;
 }
 
 /// Implementation of [NetworkInfo] using [Connectivity].
@@ -31,5 +32,15 @@ class NetworkInfoImpl implements NetworkInfo {
       // Fallback gracefully to assuming network connection if plugin channel fails or is unsupported
       return true;
     }
+  }
+
+  @override
+  Stream<bool> get onConnectivityChanged {
+    return connectivity.onConnectivityChanged.map((results) {
+      if (results.contains(ConnectivityResult.none) || results.isEmpty) {
+        return false;
+      }
+      return true;
+    });
   }
 }

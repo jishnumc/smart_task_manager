@@ -41,7 +41,14 @@ class TaskListState {
   final bool isSortAscending;
 
   List<TaskEntity> get filteredAndSortedTasks {
-    var list = tasks.where((task) {
+    // Deduplicate tasks by task ID
+    final uniqueTasksMap = <String, TaskEntity>{};
+    for (final task in tasks) {
+      uniqueTasksMap[task.id] = task;
+    }
+    final uniqueTasks = uniqueTasksMap.values.toList();
+
+    var list = uniqueTasks.where((task) {
       if (searchQuery.isNotEmpty) {
         final query = searchQuery.trim().toLowerCase();
         final titleMatch = task.title.toLowerCase().contains(query);

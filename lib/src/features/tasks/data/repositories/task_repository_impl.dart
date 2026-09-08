@@ -16,10 +16,10 @@ class TaskRepositoryImpl implements TaskRepository {
     required TaskLocalDataSource localDataSource,
     required NetworkInfo networkInfo,
     required StorageClient storageClient,
-  }) : _remoteDataSource = remoteDataSource,
-       _localDataSource = localDataSource,
-       _networkInfo = networkInfo,
-       _storageClient = storageClient;
+  })  : _remoteDataSource = remoteDataSource,
+        _localDataSource = localDataSource,
+        _networkInfo = networkInfo,
+        _storageClient = storageClient;
 
   final TaskRemoteDataSource _remoteDataSource;
   final TaskLocalDataSource _localDataSource;
@@ -215,6 +215,65 @@ class TaskRepositoryImpl implements TaskRepository {
 
     await _localDataSource.updateTaskInLocal(task: updatedModel);
     return updatedModel.toEntity();
+  }
+
+  @override
+  Future<List<TaskEntity>> getUnsyncedTasks() async {
+    final userId = _storageClient.read<String>('user_id') ?? 'default_user';
+    final localUnsynced =
+        await _localDataSource.getUnsyncedTasks(userId: userId);
+    return localUnsynced.map((m) => m.toEntity()).toList();
+  }
+
+  @override
+  Future<SyncResult> syncOfflineTasks() async {
+    final userId = _storageClient.read<String>('user_id') ?? 'default_user';
+    final isConnected = await _networkInfo.isConnected;
+    final unsynced = await _localDataSource.getUnsyncedTasks(userId: userId);
+
+    if (unsynced.isEmpty) {
+      return const SyncResult(syncedCount: 0, failedCount: 0);
+    }
+
+    if (!isConnected) {
+      return SyncResult(syncedCount: 0, failedCount: unsynced.length);
+    }
+
+    int syncedCount = 0;
+    int failedCount = 0;
+
+    for (final localTask in unsynced) {
+      try {
+        final payload = TaskCreateRequestModel(
+          title: localTask.title,
+          description: localTask.description,
+          isCompleted: localTask.isCompleted,
+          dueDate: localTask.dueDate,
+          priority: localTask.priority,
+          category: localTask.category,
+        );
+
+        final response = await _remoteDataSource.createTask(
+          userId: userId,
+          payload: payload,
+        );
+
+        final remoteData = response.data;
+        if (remoteData != null) {
+          await _localDataSource.markTaskAsSynced(
+            localOrRemoteId: localTask.id,
+            remoteId: remoteData.id.toString(),
+          );
+          syncedCount++;
+        } else {
+          failedCount++;
+        }
+      } catch (e) {
+        failedCount++;
+      }
+    }
+
+    return SyncResult(syncedCount: syncedCount, failedCount: failedCount);
   }
 }
 

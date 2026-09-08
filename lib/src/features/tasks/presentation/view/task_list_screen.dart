@@ -7,7 +7,9 @@ import 'package:smart_task_manager/src/design_system/spacing/app_spacing.dart';
 import 'package:smart_task_manager/src/design_system/widgets/buttons/primary_button.dart';
 import 'package:smart_task_manager/src/design_system/widgets/cards/app_card.dart';
 import 'package:smart_task_manager/src/features/tasks/domain/entities/task_entity.dart';
+import 'package:smart_task_manager/src/features/tasks/presentation/notifiers/sync_notifier.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/notifiers/task_list_notifier.dart';
+import 'package:smart_task_manager/src/features/tasks/presentation/widgets/sync_prompt_dialog.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/widgets/task_card_item.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/widgets/task_filter_chips.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/widgets/task_list_empty_view.dart';
@@ -28,6 +30,15 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    Future.microtask(() async {
+      await ref.read(syncNotifierProvider.notifier).checkAndPromptSync();
+      if (mounted) {
+        final syncState = ref.read(syncNotifierProvider);
+        if (syncState.isPromptVisible) {
+          SyncPromptDialog.show(context, unsyncedCount: syncState.unsyncedCount);
+        }
+      }
+    });
   }
 
   @override
@@ -109,9 +120,16 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<SyncNotifierState>(syncNotifierProvider, (previous, next) {
+      if (next.isPromptVisible && (previous?.isPromptVisible != true)) {
+        SyncPromptDialog.show(context, unsyncedCount: next.unsyncedCount);
+      }
+    });
+
     final colors = context.appColors;
     final state = ref.watch(taskListProvider);
     final notifier = ref.read(taskListProvider.notifier);
+    final syncState = ref.watch(syncNotifierProvider);
 
     final displayTasks = state.filteredAndSortedTasks;
     final isFiltered = state.searchQuery.isNotEmpty ||
@@ -127,6 +145,16 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
           onPressed: () => context.pop(),
         ),
         actions: [
+          if (syncState.unsyncedCount > 0)
+            IconButton(
+              icon:
+                  const Icon(Icons.sync_problem_rounded, color: Colors.orange),
+              tooltip: 'Sync Offline Tasks (${syncState.unsyncedCount})',
+              onPressed: () => SyncPromptDialog.show(
+                context,
+                unsyncedCount: syncState.unsyncedCount,
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.add_rounded),
             tooltip: 'Create Task',
@@ -160,7 +188,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
-                    'Offline Mode — Loaded from local SQLite database',
+                    'Offline Mode — Viewing saved local data',
                     style: context.textTheme.labelMedium?.copyWith(
                       color: Colors.orange,
                       fontWeight: FontWeight.w600,

@@ -50,20 +50,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
           final updatedState = ref.read(taskListProvider);
           final updatedTask = updatedState.tasks.firstWhere(
             (t) => t.id == _currentTask.id,
-            orElse: () => TaskEntity(
-              id: _currentTask.id,
-              userId: _currentTask.userId,
-              title: payload.title ?? _currentTask.title,
-              description: payload.description ?? _currentTask.description,
-              isCompleted: payload.isCompleted ?? _currentTask.isCompleted,
-              dueDate: payload.dueDate != null
-                  ? (DateTime.tryParse(payload.dueDate!) ?? _currentTask.dueDate)
-                  : _currentTask.dueDate,
-              priority: payload.priority ?? _currentTask.priority,
-              category: payload.category ?? _currentTask.category,
-              createdAt: _currentTask.createdAt,
-              updatedAt: DateTime.now(),
-            ),
+            orElse: () => _currentTask,
           );
 
           setState(() {

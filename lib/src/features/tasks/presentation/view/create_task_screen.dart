@@ -146,7 +146,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
 
         final colors = context.appColors;
         final message = isOfflineSaved
-            ? 'Network offline! Task saved locally to SQLite DB.'
+            ? 'Network offline! Data saved.'
             : 'Task created successfully!';
 
         ScaffoldMessenger.of(context).showSnackBar(
