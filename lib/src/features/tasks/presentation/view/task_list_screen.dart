@@ -130,7 +130,12 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
           IconButton(
             icon: const Icon(Icons.add_rounded),
             tooltip: 'Create Task',
-            onPressed: () => context.push('/create-task'),
+            onPressed: () async {
+              await context.push('/create-task');
+              if (mounted) {
+                ref.read(taskListProvider.notifier).refreshTasks();
+              }
+            },
           ),
         ],
       ),

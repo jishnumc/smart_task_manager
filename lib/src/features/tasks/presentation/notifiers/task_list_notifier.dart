@@ -1,5 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:smart_task_manager/src/features/tasks/data/models/task_update_request_model.dart';
+import 'package:smart_task_manager/src/features/tasks/domain/entities/task_entity.dart';
 import 'package:smart_task_manager/src/features/tasks/domain/usecases/delete_task_usecase.dart';
 import 'package:smart_task_manager/src/features/tasks/domain/usecases/get_tasks_usecase.dart';
 import 'package:smart_task_manager/src/features/tasks/domain/usecases/update_task_usecase.dart';
@@ -191,6 +192,17 @@ class TaskListNotifier extends _$TaskListNotifier {
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
       return false;
+    }
+  }
+
+  void addTask(TaskEntity task) {
+    // Avoid duplicate task insertion if task already exists
+    final exists = state.tasks.any((t) => t.id == task.id);
+    if (!exists) {
+      state = state.copyWith(
+        tasks: [task, ...state.tasks],
+        total: state.total + 1,
+      );
     }
   }
 }

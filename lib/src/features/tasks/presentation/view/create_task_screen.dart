@@ -7,6 +7,7 @@ import 'package:smart_task_manager/src/design_system/widgets/widgets.dart';
 import 'package:smart_task_manager/src/features/tasks/data/task_options_data.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/notifiers/create_task_notifier.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/notifiers/create_task_state.dart';
+import 'package:smart_task_manager/src/features/tasks/presentation/notifiers/task_list_notifier.dart';
 import 'package:smart_task_manager/src/system/exceptions/app_exception.dart';
 
 class CreateTaskScreen extends ConsumerStatefulWidget {
@@ -139,6 +140,10 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
   void _handleStateChange(CreateTaskState? previous, CreateTaskState next) {
     next.whenOrNull(
       success: (task, isOfflineSaved) {
+        // Immediately add the new task to task list state and refresh
+        ref.read(taskListProvider.notifier).addTask(task);
+        ref.read(taskListProvider.notifier).refreshTasks();
+
         final colors = context.appColors;
         final message = isOfflineSaved
             ? 'Network offline! Task saved locally to SQLite DB.'
