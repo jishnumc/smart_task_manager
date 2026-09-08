@@ -6,6 +6,7 @@ import 'package:smart_task_manager/src/features/auth/presentation/notifiers/auth
 import 'package:smart_task_manager/src/features/auth/presentation/view/auth_screen.dart';
 import 'package:smart_task_manager/src/features/dashboard/presentation/view/dashboard_screen.dart';
 
+import 'package:smart_task_manager/src/features/splash/presentation/view/splash_screen.dart';
 import 'package:smart_task_manager/src/features/tasks/domain/entities/task_entity.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/view/create_task_screen.dart';
 import 'package:smart_task_manager/src/features/tasks/presentation/view/task_detail_screen.dart';
@@ -30,11 +31,15 @@ GoRouter appRouter(Ref ref) {
   final refreshNotifier = RouterAuthRefreshNotifier(ref);
 
   return GoRouter(
-    initialLocation: '/auth',
+    initialLocation: '/splash',
     refreshListenable: refreshNotifier,
     debugLogDiagnostics: true,
     redirect: (context, state) {
       final authState = ref.read(authProvider);
+
+      if (state.matchedLocation == '/splash') {
+        return null; // Stay on splash route until animation completes
+      }
 
       if (authState is AuthInitial || authState is AuthLoading) {
         return null; // Stay on current route while loading initial auth state
@@ -53,6 +58,11 @@ GoRouter appRouter(Ref ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/auth',
         name: 'auth',

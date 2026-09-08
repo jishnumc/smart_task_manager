@@ -68,6 +68,74 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
+  void _showLogoutConfirmation(BuildContext context) {
+    final colors = context.appColors;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.xs),
+                decoration: BoxDecoration(
+                  color: colors.error.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.logout_rounded,
+                  color: colors.error,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'Sign Out',
+                style: context.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colors.mainText,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Are you sure you want to sign out of Smart Task Manager?',
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: colors.subText,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: colors.subText),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.error,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                ref.read(authProvider.notifier).signOut();
+              },
+              child: const Text('Sign Out'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
@@ -121,9 +189,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 IconButton(
                   icon: const Icon(Icons.logout_rounded),
                   tooltip: 'Sign Out',
-                  onPressed: () {
-                    ref.read(authProvider.notifier).signOut();
-                  },
+                  onPressed: () => _showLogoutConfirmation(context),
                 ),
               ],
             ),
@@ -323,12 +389,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             ),
                             const SizedBox(height: AppSpacing.xl),
 
-                            if (_isEditing)
+                            if (_isEditing) ...[
                               PrimaryButton(
                                 text: 'Save Changes',
                                 isLoading: _isSaving,
                                 onPressed: _saveProfile,
                               ),
+                              const SizedBox(height: AppSpacing.md),
+                            ],
+
+                            SecondaryButton(
+                              text: 'Sign Out',
+                              icon: Icons.logout_rounded,
+                              onPressed: () => _showLogoutConfirmation(context),
+                            ),
                           ],
                         ),
                       ),
